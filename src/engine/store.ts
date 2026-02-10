@@ -2,6 +2,21 @@ import type { Node, NodeID, Run, RunID, RunEval, ContentHash } from './types.ts'
 import { computeNodeId } from './hashing.ts';
 
 /**
+ * Recursive freeze helper for dev/test hardening.
+ */
+export function deepFreeze<T>(obj: T): T {
+    if (obj === null || typeof obj !== 'object') return obj;
+    Object.freeze(obj);
+    Object.getOwnPropertyNames(obj).forEach(prop => {
+        const value = (obj as any)[prop];
+        if (value !== null && typeof value === 'object' && !Object.isFrozen(value)) {
+            deepFreeze(value);
+        }
+    });
+    return obj;
+}
+
+/**
  * Immutable Node Store (Content-Addressed)
  */
 export class NodeStore {
@@ -20,17 +35,12 @@ export class NodeStore {
         // 2. Collision Guard
         const existing = this.nodes.get(node.id);
         if (existing) {
-            // If ID exists, verify content is actually identical
-            const existingId = await computeNodeId(existing);
-            if (existingId !== calculatedId) {
-                // This branch is theoretically unreachable if hashing is sound, but good for defense-in-depth
-                throw new Error(`Hash collision detected for ID ${node.id}. Content differs.`);
-            }
-            // If identical, we can silently return (idempotent)
+            // Idempotent return if identical
             return;
         }
 
-        this.nodes.set(node.id, Object.freeze({ ...node }));
+        // 3. Freeze and store
+        this.nodes.set(node.id, deepFreeze({ ...node }));
     }
 
     getNode(id: NodeID): Node | undefined {
@@ -57,7 +67,7 @@ export class EngineStore {
 
     // Run management
     registerRun(run: Run): void {
-        this.runs.set(run.id, Object.freeze({ ...run }));
+        this.runs.set(run.id, deepFreeze({ ...run }));
     }
 
     getRun(id: RunID): Run | undefined {
@@ -67,12 +77,12 @@ export class EngineStore {
     // Evaluation management
     setEval(runId: RunID, nodeId: NodeID, evaluation: Omit<RunEval, 'runId' | 'nodeId' | 'computed_at'>): void {
         const key = `${runId}:${nodeId}`;
-        this.evals.set(key, {
+        this.evals.set(key, deepFreeze({
             ...evaluation,
             runId,
             nodeId,
             computed_at: Date.now(),
-        });
+        }));
     }
 
     getEval(runId: RunID, nodeId: NodeID): RunEval | undefined {
@@ -80,23 +90,44 @@ export class EngineStore {
     }
 
     // Artifact management
-    putArtifact(content: Uint8Array): ContentHash {
-        const hash = this.simpleHash(content);
-        this.artifacts.set(hash, content);
+    /**
+     * Stores an artifact with cryptographic identity and collision guard.
+     * Returns the SHA-256 hex hash.
+     */
+    public async putArtifact(content: Uint8Array): Promise<ContentHash> {
+        const bytes = content.slice(); // Defensive copy to prevent mutation races
+        const hash = await this.computeSha256(bytes);
+
+        const existing = this.artifacts.get(hash);
+        if (existing) {
+            // Collision Guard: if hash exists, content MUST be byte-identical
+            if (!this.bytesEqual(existing, bytes)) {
+                throw new Error(`CRITICAL: Cryptographic collision or store corruption detected for hash ${hash}`);
+            }
+            return hash;
+        }
+
+        this.artifacts.set(hash, bytes);
         return hash;
     }
 
-    getArtifact(hash: ContentHash): Uint8Array | undefined {
-        return this.artifacts.get(hash);
+    public getArtifact(hash: ContentHash): Uint8Array | undefined {
+        const bytes = this.artifacts.get(hash);
+        return bytes ? bytes.slice() : undefined; // Always return a copy
     }
 
-    private simpleHash(content: Uint8Array): string {
-        let hash = 0;
-        for (let i = 0; i < content.length; i++) {
-            hash = ((hash << 5) - hash) + content[i];
-            hash |= 0;
+    private async computeSha256(bytes: Uint8Array): Promise<string> {
+        const digest = await crypto.subtle.digest("SHA-256", (bytes as unknown) as ArrayBuffer);
+        const arr = new Uint8Array(digest);
+        return Array.from(arr, b => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    private bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
+        if (a.length !== b.length) return false;
+        for (let i = 0; i < a.length; i++) {
+            if (a[i] !== b[i]) return false;
         }
-        return (hash >>> 0).toString(16).padStart(8, '0');
+        return true;
     }
 }
 

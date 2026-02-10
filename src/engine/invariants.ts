@@ -1,5 +1,5 @@
 import { NodeType } from './types.ts';
-import type { NodeID } from './types.ts';
+import type { NodeID, PayloadByType } from './types.ts';
 import { store } from './store.ts';
 
 /**
@@ -12,8 +12,11 @@ export function assertAnswerIntegrity(runId: string, answerNodeId: NodeID) {
     const evaluation = store.getEval(runId, answerNodeId);
     if (evaluation?.status !== "VALID") return;
 
+    // Type casting for Answer payload
+    const payload = node.payload as PayloadByType[typeof NodeType.ANSWER_RENDERED];
+
     // 1. Check claim coverage
-    const claimIds = node.payload.claim_ids as NodeID[];
+    const claimIds = payload.claimIds;
     if (!claimIds || claimIds.length === 0) {
         throw new Error(`Pinned Purity Violation: Answer ${answerNodeId} has no associated claims.`);
     }
@@ -28,9 +31,12 @@ export function assertAnswerIntegrity(runId: string, answerNodeId: NodeID) {
 
     // 3. Byte-for-byte Template Check (G0 strict)
     const claims = claimIds.map(cid => store.nodes.getNode(cid)!);
-    const expectedText = claims.map(c => c.payload.text).join('\n\n');
+    const expectedText = claims.map(c => {
+        const cPayload = c.payload as { text: string };
+        return cPayload.text;
+    }).join('\n\n');
 
-    if (node.payload.text !== expectedText) {
+    if (payload.text !== expectedText) {
         throw new Error(`Pinned Purity Violation: Answer ${answerNodeId} contains model-authored prose not found in claims.`);
     }
 }
@@ -64,7 +70,15 @@ export function assertSupportClosure(runId: string, nodeId: NodeID) {
 
             const evalStatus = store.getEval(runId, id)?.status;
             if (evalStatus === "VALID") {
-                anchorFound = true;
+                // If it's a span anchored to an artifact, verify the artifact exists
+                if (node.provenance.artifact_ref) {
+                    if (store.getArtifact(node.provenance.artifact_ref)) {
+                        anchorFound = true;
+                    }
+                } else {
+                    // Root docs might not have artifact_refs if they are seeds
+                    anchorFound = true;
+                }
             }
         }
 

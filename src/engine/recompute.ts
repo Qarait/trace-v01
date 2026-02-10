@@ -1,18 +1,16 @@
 import type { Run } from './types.ts';
 import { store } from './store.ts';
-import { buildForwardGraph, topoSort } from './graph.ts';
+import { topoSort } from './graph.ts';
 
 /**
  * Transitive Invalidation Logic
  */
 export function recomputeRun(run: Run, parentRunId?: string) {
-    const rootIds = run.root_node_ids;
     const excludedIds = new Set(run.exclusions?.node_ids || []);
 
-    // 1. Build the full graph reachable from roots
-    // Note: in a real system we'd crawl the whole store or use a known set
-    const allNodes = topoSort(rootIds);
-    buildForwardGraph(allNodes);
+    // 1. Get all nodes in the store and process in topological order
+    const allNodeIds = Array.from(store.nodes.getAllNodes().keys());
+    const sortedNodeIds = topoSort(allNodeIds);
 
     // 2. Initial state: Mark excluded nodes as INVALID
     for (const id of excludedIds) {
@@ -20,7 +18,7 @@ export function recomputeRun(run: Run, parentRunId?: string) {
     }
 
     // 3. Process in topo order to propagate status
-    for (const nodeId of allNodes) {
+    for (const nodeId of sortedNodeIds) {
         // Skip if already set by exclusion or previous step
         if (store.getEval(run.id, nodeId)) continue;
 
