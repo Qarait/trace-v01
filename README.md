@@ -1,73 +1,40 @@
-# React + TypeScript + Vite
+# Trace v0.1: Hardened Reasoning Ledger
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Trace is a transparent, debuggable AI reasoning engine that enforces factual integrity through an immutable dependency ledger. It is designed to replace "black box" LLM outputs with a verifiable graph of claims, evidence, and systematic audits.
 
-Currently, two official plugins are available:
+## Core Philosophies
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+1.  **Immutability (A0)**: Every action creates a new `Run`. Nodes are content-addressed and immutable.
+2.  **Hypothesis vs. Claim (A1)**: LLMs propose; the system validates. A claim is only materialized if it is supported by a verified anchor.
+3.  **Anchor Enforcement (A2)**: Only `RETRIEVAL_DOC` or `EVIDENCE_SPAN` nodes can introduce facts. The final answer is a pure function of valid claims.
+4.  **Audit Integrity**: Automated G0-G2 invariants verify support-closure and Pinned Purity on every run.
 
-## React Compiler
+## Architecture
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+The system is partitioned into a pure TypeScript **Engine** and a React-based **Visualization Layer**.
 
-## Expanding the ESLint configuration
+-   `src/engine/store.ts`: The content-addressed immutable ledger.
+-   `src/engine/hashing.ts`: SAN-safe canonical serialization and hashing.
+-   `src/engine/invariants.ts`: G0-G2 audit gates (Pinned Purity, Support Closure, Transitive Invalidation).
+-   `src/engine/pipeline.ts`: The 5-step seed-to-synthesis pipeline.
+-   `src/ui/`: React Flow visualization and split-pane interface.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Verification
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+The project includes a verification suite to ensure identity determinism and ledger correctness.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+# Verify identity-only hashing and store collision guards
+npx vite-node src/verify_identity.ts
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Getting Started
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
+
+## Project Status
+
+Trace is currently in v0.1 (Technical Preview). It demonstrates the core invalidation and audit mechanics using deterministic mock scenarios (Golden Scenario).
