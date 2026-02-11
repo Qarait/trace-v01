@@ -93,6 +93,8 @@ export type PayloadByType = MustCoverAllNodeTypes<{
   };
   [NodeType.RUN_AUDIT_REPORT]: {
     readonly runId: RunID;
+    readonly parentId: RunID | undefined;
+    readonly engineVersion: string;
     readonly invariantStatus: {
       readonly G0_AnswerIntegrity: "PASSED" | "FAILED";
       readonly G1_AnchorSupport: "PASSED" | "FAILED";

@@ -7,11 +7,14 @@ import { NodeType } from './engine/types.ts';
 import { AnswerView } from './ui/AnswerView.tsx';
 import { ReasoningGraph } from './ui/ReasoningGraph.tsx';
 import { Toolbar } from './ui/Toolbar.tsx';
+import { SupportPanel } from './ui/SupportPanel.tsx';
+import { AuditPanel } from './ui/AuditPanel.tsx';
 
 function App() {
   const [currentRunId, setCurrentRunId] = useState<RunID | null>(null);
   const [runs, setRuns] = useState<Run[]>([]);
   const [isReady, setIsReady] = useState(false);
+  const [activeTab, setActiveTab] = useState<'support' | 'graph' | 'audit'>('support');
 
   // Initialize demo run
   useEffect(() => {
@@ -44,9 +47,6 @@ function App() {
     return <div className="loading" style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)' }}>Initializing Trace Engine...</div>;
   }
 
-  const currentRun = runs.find(r => r.id === currentRunId)!;
-  console.log('Current Run:', currentRun); // used to satisfy lint
-
   const answerNodeId = Array.from(store.nodes.getAllNodes().keys()).find(id => store.nodes.getNode(id)?.type === NodeType.ANSWER_RENDERED);
 
   return (
@@ -55,7 +55,7 @@ function App() {
         runs={runs}
         currentRunId={currentRunId}
         onSelectRun={setCurrentRunId}
-        onNewRun={(newRun: Run) => {
+        onNewRun={(newRun) => {
           setRuns(prev => [...prev, newRun]);
           setCurrentRunId(newRun.id);
         }}
@@ -64,12 +64,44 @@ function App() {
         <section className="pane answer-pane">
           <AnswerView runId={currentRunId} nodeId={answerNodeId!} />
         </section>
-        <section className="pane graph-pane">
-          <ReasoningGraph runId={currentRunId} />
+
+        <section className="pane right-pane">
+          <div className="tabs" style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)' }}>
+            <TabButton active={activeTab === 'support'} onClick={() => setActiveTab('support')} label="Support" />
+            <TabButton active={activeTab === 'graph'} onClick={() => setActiveTab('graph')} label="Graph" />
+            <TabButton active={activeTab === 'audit'} onClick={() => setActiveTab('audit')} label="Audit" />
+          </div>
+          <div className="tab-content" style={{ flex: 1, overflow: 'hidden' }}>
+            {activeTab === 'support' && <SupportPanel runId={currentRunId} onNewRun={(newRun: Run) => {
+              setRuns(prev => [...prev, newRun]);
+              setCurrentRunId(newRun.id);
+            }} />}
+            {activeTab === 'graph' && <ReasoningGraph runId={currentRunId} />}
+            {activeTab === 'audit' && <AuditPanel runId={currentRunId} />}
+          </div>
         </section>
       </main>
     </div>
   );
 }
+
+const TabButton: React.FC<{ active: boolean; onClick: () => void; label: string }> = ({ active, onClick, label }) => (
+  <button
+    onClick={onClick}
+    style={{
+      padding: '12px 24px',
+      background: active ? 'rgba(255,255,255,0.05)' : 'none',
+      border: 'none',
+      borderBottom: active ? '2px solid var(--node-retrieval)' : '2px solid transparent',
+      color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+      cursor: 'pointer',
+      fontSize: '0.85rem',
+      fontWeight: active ? 'bold' : 'normal',
+      transition: 'all 0.2s'
+    }}
+  >
+    {label}
+  </button>
+);
 
 export default App;

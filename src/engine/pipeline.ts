@@ -76,6 +76,8 @@ export class Pipeline {
             NodeType.RUN_AUDIT_REPORT,
             {
                 runId: run.id,
+                parentId: run.parent_run_id,
+                engineVersion: "v0.2.0",
                 invariantStatus: {
                     G0_AnswerIntegrity: g0 as any,
                     G1_AnchorSupport: g1 as any,
@@ -107,7 +109,14 @@ export class Pipeline {
                     assertNoInvalidInputs(run.id, id);
 
                     if (node.type === NodeType.ANSWER_RENDERED) {
-                        // G0: Pinned Purity
+                        // G0: Pinned Purity (Strict byte-for-byte join check)
+                        const claimIds = (node.payload as any).claimIds || [];
+                        const claims = claimIds.map((cid: NodeID) => store.nodes.getNode(cid)).filter(Boolean);
+                        const joinText = claims.map((c: any) => c.payload.text).join('\n\n');
+
+                        if ((node.payload as any).text !== joinText) {
+                            throw new Error(`G0: Answer Integrity Failure. Rendered text does not match join of ${claimIds.length} claims.`);
+                        }
                         assertAnswerIntegrity(run.id, id);
                     }
 
@@ -291,7 +300,9 @@ export class Pipeline {
     }
 
     private async step4_synthesis(run: Run, _scenario: typeof DEMO_SCENARIO | typeof GOLDEN_SCENARIO, claims: any[]): Promise<void> {
-        const claimIds = claims.map(c => c.id).sort();
+        // Build answer from run-scoped VALID claims only
+        const validClaims = claims.filter(c => store.getEval(run.id, c.id)?.status === "VALID");
+        const claimIds = validClaims.map(c => c.id).sort();
 
         const pNode = await createNode(
             NodeType.ANSWER_PLAN,
@@ -312,7 +323,7 @@ export class Pipeline {
         await store.nodes.addNode(pNode);
         store.setEval(run.id, pNode.id, { status: "VALID" });
 
-        const textOutput = claims.map(c => c.payload.text).join('\n\n');
+        const textOutput = validClaims.map(c => c.payload.text).join('\n\n');
         const rNode = await createNode(
             NodeType.ANSWER_RENDERED,
             { text: textOutput, claimIds },

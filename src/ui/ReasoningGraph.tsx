@@ -31,27 +31,50 @@ export const ReasoningGraph: React.FC<ReasoningGraphProps> = ({ runId }) => {
     if (!runId || !run) return <div>Run not found</div>;
 
     const { flowNodes, flowEdges } = useMemo(() => {
-        const nodesInOrder = topoSort([...run.root_node_ids]);
+        const allNodeIds = topoSort([...run.root_node_ids]);
 
-        const flowNodes = nodesInOrder.map((id, index) => {
+        // v0.2: Stable Layer-Based Layout (Left-to-Right)
+        const getLayer = (type: NodeType): number => {
+            switch (type) {
+                case NodeType.QUESTION:
+                case NodeType.RETRIEVAL_DOC: return 0;
+                case NodeType.DOC_TEXT:
+                case NodeType.SPAN_CANDIDATE: return 1;
+                case NodeType.HYPOTHESIS:
+                case NodeType.VALIDATION:
+                case NodeType.CLAIM: return 2;
+                case NodeType.ANSWER_PLAN:
+                case NodeType.ANSWER_RENDERED: return 3;
+                case NodeType.RUN_AUDIT_REPORT: return 4;
+                default: return 5;
+            }
+        };
+
+        const layerCounts: Record<number, number> = {};
+
+        const flowNodes = allNodeIds.map((id) => {
             const node = store.nodes.getNode(id)!;
             const evaluation = store.getEval(runId, id);
+            const layer = getLayer(node.type);
+
+            const rowIndex = layerCounts[layer] || 0;
+            layerCounts[layer] = rowIndex + 1;
 
             return {
                 id,
                 type: 'custom',
                 data: {
-                    label: node.payload.text || node.payload.query || node.payload.url || '...',
+                    label: (node.payload as any).text || (node.payload as any).query || (node.payload as any).url || '...',
                     type: node.type,
                     status: evaluation?.status || 'UNKNOWN',
-                    background: evaluation?.status === 'INVALID' ? '#441111' : '#1a1a1e',
+                    background: evaluation?.status === 'INVALID' ? '#411' : '#1a1a1e',
                     border: `1px solid ${getNodeColor(node.type)}`,
                 },
-                position: { x: index * 220, y: (index % 5) * 100 },
+                position: { x: layer * 300, y: rowIndex * 120 },
             };
         });
 
-        const flowEdges = nodesInOrder.flatMap(id => {
+        const flowEdges = allNodeIds.flatMap(id => {
             const node = store.nodes.getNode(id)!;
             return node.inputs.map(inputId => ({
                 id: `${inputId}-${id}`,
