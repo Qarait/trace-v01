@@ -40,7 +40,9 @@ export const AuditPanel: React.FC<AuditPanelProps> = ({ runId }) => {
                 border: `1px solid ${allPassed ? 'rgba(76, 175, 80, 0.2)' : 'rgba(244, 67, 54, 0.2)'}`,
                 marginBottom: '32px'
             }}>
-                {allPassed ? <ShieldCheck size={28} color="var(--node-retrieval)" /> : <ShieldX size={28} color="var(--node-invalid)" />}
+                <div style={{ flexShrink: 0 }}>
+                    {allPassed ? <ShieldCheck size={28} color="var(--node-retrieval)" /> : <ShieldX size={28} color="var(--node-invalid)" />}
+                </div>
                 <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '4px' }}>
                         Audit:{' '}
