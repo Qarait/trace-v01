@@ -86,7 +86,7 @@ export const AnswerView: React.FC<AnswerViewProps> = ({ runId, nodeId }) => {
                             No supported statements remain
                         </h3>
                         <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', maxWidth: '400px', margin: '0 auto 24px', lineHeight: '1.5' }}>
-                            All evidence used previously has been excluded. Trace will not guess.
+                            You excluded all evidence sources. Trace will not guess.
                         </p>
                         {run?.parent_run_id && (
                             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
@@ -144,7 +144,7 @@ const ClaimBlock: React.FC<{ claimId: NodeID; isRemoved?: boolean; exclusionCaus
     let attributionText = 'No longer supported by sources';
     if (exclusionCauses && exclusionCauses.length > 0) {
         const causeLabels = exclusionCauses.map(c => c.label);
-        attributionText = `Removed because ${causeLabels.join(' and ')} was excluded`;
+        attributionText = `Removed because you excluded ${causeLabels.join(' and ')}`;
     } else if (isRemoved) {
         attributionText = 'Removed due to upstream changes';
     }

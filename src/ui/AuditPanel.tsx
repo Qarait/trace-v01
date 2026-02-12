@@ -50,6 +50,9 @@ export const AuditPanel: React.FC<AuditPanelProps> = ({ runId }) => {
                             ? 'All integrity checks passed. The answer is structurally sound.'
                             : 'One or more integrity checks failed. Review details below.'}
                     </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontStyle: 'italic', marginTop: '2px' }}>
+                        Structure check — not a fact-check.
+                    </div>
                 </div>
             </div>
 
