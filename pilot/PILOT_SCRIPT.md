@@ -1,130 +1,162 @@
-# Trace v0.2.1 — Pilot Script
+# Trace Pilot Script v2 (25 minutes)
 
-**Duration:** 15 minutes per participant  
-**Version:** v0.2.1 (frozen ledger contract)  
-**Facilitator note:** Do not guide the participant. Observe where they hesitate.
+**Version:** v0.2.2 (frozen)
+**Structure:** Baseline → Challenge → Nuclear → Wrap
+**No docs upfront.** Let the product explain itself.
 
 ---
 
-## Glossary (Hand this to the participant)
+## Participant Profiles
 
-| You'll see this | What it means |
-|---|---|
-| **Verified** | This claim is backed by at least one source in the vault. |
-| **No longer supported** | The source that backed this claim was removed or challenged. |
-| **Conflicting sources found** | Two sources disagree on this point. |
-| **[Removed Statements]** | Claims that were struck because a source was excluded. |
-
-**The one-liner to remember:**  
-> *"When the answer collapses, that's success: Trace refused to guess."*
+| # | Role | Skepticism Lever |
+|---|---|---|
+| P1 | Security Analyst | "Where did this come from? Show me the source." |
+| P2 | Product Manager | "Can I trust this for a decision?" |
+| P3 | Research Analyst | "Is this citing correctly?" |
+| P4 | Skeptical Engineer | "What happens if I break it?" |
+| P5 | Journalist | "Can I defend this citation in an article?" |
 
 ---
 
 ## Scenarios
 
-Use these canned researcher prompts. Each is designed to produce enough claims to make the challenge loop meaningful.
+Each participant gets one scenario. All use mock sources (clearly labeled).
 
-### Scenario 1: Warranty & Consumer Rights
-> "What are the standard warranty obligations for consumer electronics sold in the EU under the 2024 directive?"
+### S1: Security Advisory (P1)
+> "What are the key mitigations for CVE-2024-31337?"
 
-**Why this works:** Multiple overlapping legal sources, easy to challenge one.
+Sources:
+- `nvd.nist.gov/vuln/detail/CVE-2024-31337` — patch info
+- `blog.security-vendor.com/analysis` — editorial analysis with one unsupported claim
 
-### Scenario 2: Drug Interaction Safety
-> "What are the known interactions between metformin and common over-the-counter NSAIDs?"
+### S2: Product Warranty / SLA (P2)
+> "What is the warranty period for the Pro-X headset in the UK?"
 
-**Why this works:** High-stakes domain where hallucination is dangerous. Tests whether participants trust the "collapse" more than a smooth answer.
+Sources:
+- `support.pro-x.com/warranty` — 2-year EU warranty
+- `shop.pro-x.com/terms` — irrelevant shipping info (distractor)
 
-### Scenario 3: Historical Claim Verification
-> "Did the Roman Empire have concrete technology comparable to modern Portland cement?"
+### S3: Drug Interaction Summary (P3)
+> "Does ibuprofen interact with warfarin?"
 
-**Why this works:** Common misconception territory. Tests whether Trace surfaces conflicting evidence honestly.
+Sources:
+- `drugs.fda.gov/label/ibuprofen` — interaction warning
+- `medlineplus.gov/warfarin` — dosing info, no interaction mention
 
-### Scenario 4: Financial Regulation
-> "What are the key reporting obligations under the SEC's 2024 climate disclosure rules?"
+### S4: Cloud Provider SLA (P4)
+> "What is the uptime guarantee for ContainerPlatform Enterprise?"
 
-**Why this works:** Fast-moving regulatory domain. Sources may partially conflict.
+Sources:
+- `docs.containerplatform.io/sla` — 99.95% uptime
+- `status.containerplatform.io/history` — actual incident history contradicting SLA
 
-### Scenario 5: Technical Architecture
-> "Compare the security guarantees of Signal Protocol vs. Matrix/MLS for enterprise messaging."
+### S5: Historical Claim Verification (P5)
+> "When was the first transatlantic cable completed?"
 
-**Why this works:** Technical domain with strong opinions. Tests whether Trace correctly attributes claims to specific sources.
-
----
-
-## The 3 Tasks (in order)
-
-### Task 1 — Trust Baseline (3 min)
-> "Ask a factual question using one of the scenarios above. Read the answer. On a scale of 1–5, how much do you trust it? Why?"
-
-**Record:** Initial trust score, whether they look at the Support tab unprompted.
-
-### Task 2 — Challenge Loop (7 min)
-> "Find a source you think is weak or outdated. Click it and challenge it. Now look at the answer again. Can you explain what changed and why, in your own words?"
-
-**Record:**
-- Time from "start" to first successful challenge click
-- Whether they find the diff overlay naturally
-- Their one-sentence explanation of what happened
-- Whether they feel safer or confused after seeing the collapse
-
-### Task 3 — Adversarial Probe (5 min)
-> "Try to make Trace say something that isn't backed by any source. Can you force it to include an unsupported claim?"
-
-**Record:**
-- What they try (re-phrasing, adding fake context, etc.)
-- Whether they understand *why* it won't comply
-- Their reaction: frustrated or reassured?
+Sources:
+- `britannica.com/technology/transatlantic-cable` — 1858 (temporary), 1866 (permanent)
+- `maritime-history-blog.com/cables` — incorrect date (1854), formatting quirks
 
 ---
 
-## What to Measure
+## Session Structure
 
-### Quantitative (low overhead)
-| Metric | How to capture |
+### Phase 1: Baseline (5 min)
+
+1. Show the app with the scenario answer already loaded
+2. Ask: *"Read the answer. What does 'Supported' mean?"*
+3. Record their definition verbatim
+4. Ask: *"On a scale of 1–5, how much do you trust this answer right now?"*
+5. Ask: *"Do you see where the information came from?"*
+
+**Observe:**
+- Do they notice the source receipts (URL, hostname, Mock tag)?
+- Do they hover over the "supported statements" tooltip?
+- Do they open the Support tab unprompted?
+
+### Phase 2: Challenge Loop (10 min)
+
+1. Point to the Support tab: *"Pick a source you're skeptical about and click Invalidate."*
+2. After the new run loads, ask: *"What changed? Why?"*
+3. Record whether they mention:
+   - [ ] The specific source that was removed
+   - [ ] The causal attribution text ("Removed because...")
+   - [ ] The diff overlay (removed statements section)
+4. Ask: *"Can you undo what you just did?"*
+5. After undo: *"Is this the same answer as before?"* (Test determinism awareness)
+6. Ask: *"Trust score now, 1–5?"*
+
+**Observe:**
+- Time from first seeing Invalidate button to clicking it
+- Whether they discover Undo without prompting
+- Whether they open the Graph tab (and why)
+- Whether they check the Audit tab
+
+### Phase 3: Nuclear Collapse (5 min)
+
+1. *"Now invalidate ALL remaining sources."*
+2. After collapse: *"What happened? Is it broken?"*
+3. Record their interpretation:
+   - [ ] "It crashed / something went wrong"
+   - [ ] "It refused to answer because there's no evidence left"
+   - [ ] "That's honest — it won't make things up"
+4. *"Trust score now, 1–5?"*
+
+**Observe:**
+- Do they read the "Trace will not guess" message?
+- Do they try Undo?
+- Emotional response: frustration vs. respect?
+
+### Phase 4: Wrap (5 min)
+
+1. *"Would you use this for real work? For what exact task?"*
+2. *"What is missing for you to rely on it?"*
+3. *"In one sentence, what is this tool?"*
+
+---
+
+## Measurement Framework
+
+### Comprehension (binary per participant)
+
+| Metric | Pass Criterion |
 |---|---|
-| Time to first challenge | Stopwatch from task start |
-| Trust score before challenge | Participant self-report (1–5) |
-| Trust score after collapse | Participant self-report (1–5) |
-| Found Support tab unprompted | Yes / No |
-| Found diff overlay unprompted | Yes / No |
+| Define "Supported" | Mentions "backed by sources" or equivalent, NOT "verified as true" |
+| Understand Audit PASS | Describes internal integrity, NOT factual correctness |
+| Explain diff causally | Names the excluded source as reason for change |
 
-### Qualitative (write down verbatim)
-- "I expected X but it did Y" moments
-- Hesitation points ("I'm afraid to click this")
-- Their one-sentence explanation of what the challenge did
-- Whether they say "it broke" vs "it was honest"
+### Behavior (timed / observed)
 
----
+| Metric | How Measured |
+|---|---|
+| Time to first challenge | Seconds from app load to Invalidate click |
+| Undo without prompting | Yes/No before being asked about it |
+| Graph tab opened | Yes/No + stated reason |
+| Audit tab checked | Yes/No |
 
-## Red Flags to Watch For
+### Outcomes (self-reported)
 
-| Signal | What it means | Action |
-|---|---|---|
-| User says "it broke" after collapse | They see honesty as failure | Improve outcome summary copy |
-| User stares at empty answer with 0 claims | "Nuclear collapse" feels like a crash | Add "All claims removed — no evidence remains" message |
-| User can't find the Support tab | Progressive disclosure is too progressive | Consider defaulting Support tab open |
-| User challenges but doesn't see the diff | Diff overlay isn't prominent enough | Review visual hierarchy |
-| User trusts it MORE after collapse | **This is success.** | You've nailed the loop. |
-
----
-
-## Pilot Debrief Questions (2 min)
-
-1. "Would you use this for work? Why or why not?"
-2. "What was the most confusing moment?"
-3. "Did you feel more or less trust after the answer changed?"
-4. "What would you change about the interface?"
+| Metric | Format |
+|---|---|
+| Trust: pre-challenge | 1–5 |
+| Trust: post-challenge | 1–5 |
+| Trust: post-collapse | 1–5 |
+| Would use for real work | Yes/No |
+| Named workflow | Verbatim quote |
+| One-sentence definition | Verbatim quote |
 
 ---
 
 ## Success Criteria
 
-**The pilot succeeds if 4 out of 5 participants can:**
-- Complete a challenge without help
-- Explain what changed in one sentence
-- Report equal or higher trust after seeing a collapse
+- ≥4/5 correctly define "Supported"
+- ≥4/5 explain changes causally (name excluded source)
+- ≥3/5 report trust increase after challenge loop
+- ≥2/5 name a concrete real-work task
 
-**The pilot reveals work if:**
-- More than 1 participant says "it broke"
-- More than 1 participant can't find the Support tab
-- Anyone successfully forces an unsupported claim into the answer
+## Red Flag Criteria
+
+- Anyone says "it crashed" during nuclear collapse
+- Anyone says "verified" when defining "Supported"
+- Anyone cannot find how to challenge a source within 60 seconds
+- Trust drops after challenge loop (means the diff made things worse)
