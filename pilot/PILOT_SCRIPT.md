@@ -83,8 +83,10 @@ Sources:
    - [ ] The causal attribution text ("Removed because...")
    - [ ] The diff overlay (removed statements section)
 4. Ask: *"Can you undo what you just did?"*
-5. After undo: *"Is this the same answer as before?"* (Test determinism awareness)
+5. After undo: *"How does this compare to what you saw before?"* (If needed: *"Does anything look different?"*)
 6. Ask: *"Trust score now, 1–5?"*
+7. Ask: *"If you screenshot this screen and send it to your manager, what would they infer?"*
+8. Ask: *"Is there anything on this screen that could be misunderstood out of context?"*
 
 **Observe:**
 - Time from first seeing Invalidate button to clicking it

@@ -63,7 +63,7 @@ export const AnswerView: React.FC<AnswerViewProps> = ({ runId, nodeId }) => {
                             style={{ color: 'var(--node-retrieval)', fontWeight: 'bold', cursor: 'help' }}
                             title="Supported = backed by the sources shown here. This is not an external fact-check."
                         >
-                            {currentClaimIds.length} supported statements
+                            {currentClaimIds.length} supported statements <span style={{ fontWeight: 'normal', opacity: 0.7 }}>(by sources shown)</span>
                         </span>
                         {removedClaimIds.length > 0 && <span style={{ marginLeft: '8px', color: 'var(--node-invalid)' }}>| {removedClaimIds.length} removed from previous view</span>}
                     </div>
