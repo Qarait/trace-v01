@@ -13,9 +13,9 @@
 - Provenance schemas per `ProvenanceByType`
 
 ### Invariants (G0–G2)
-- **G0 Answer Integrity:** Every claim in the rendered answer exists as a CLAIM node registered in the run
-- **G1 Anchor Support:** Every CLAIM traces transitively to at least one RETRIEVAL_DOC
-- **G2 Transitive Correctness:** If a source is excluded, all downstream claims are removed from the answer
+- **G0 Answer Integrity:** Pinned answer is a deterministic render of VALID claim texts (strict join check — no claim appears in the answer without a corresponding CLAIM node in the run)
+- **G1 Anchor Support:** Every CLAIM traces transitively to at least one VALID anchor node (v0.2.2: RETRIEVAL_DOC only; v0.3 may add USER_DOC / INGESTED_DOC)
+- **G2 Transitive Correctness:** Excluding an anchor node invalidates the full transitive closure — no downstream claim remains supported
 
 ### Diff Semantics
 - `diffClaimIds(parentIds, childIds)` → `{added, removed, kept}`
