@@ -43,7 +43,11 @@ export const AuditPanel: React.FC<AuditPanelProps> = ({ runId }) => {
                 {allPassed ? <ShieldCheck size={28} color="var(--node-retrieval)" /> : <ShieldX size={28} color="var(--node-invalid)" />}
                 <div>
                     <div style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '4px' }}>
-                        Audit: {allPassed ? 'PASS' : 'FAIL'} <span style={{ fontWeight: 'normal', fontSize: '0.85rem', opacity: 0.7 }}>(structure check)</span>
+                        Audit:{' '}
+                        <span style={{ whiteSpace: 'nowrap' }}>
+                            {allPassed ? 'PASS' : 'FAIL'}{' '}
+                            <span style={{ fontWeight: 600, fontSize: '0.85rem', opacity: 0.8 }}>(structure check)</span>
+                        </span>
                     </div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                         {allPassed
@@ -51,7 +55,7 @@ export const AuditPanel: React.FC<AuditPanelProps> = ({ runId }) => {
                             : 'One or more integrity checks failed. Review details below.'}
                     </div>
                     <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                        Not a fact-check. Structure check only.
+                        <span style={{ fontWeight: 600 }}>Not a fact-check.</span> Structure check only.
                     </div>
                 </div>
             </div>
