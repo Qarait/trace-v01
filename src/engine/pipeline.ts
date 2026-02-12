@@ -77,7 +77,7 @@ export class Pipeline {
             {
                 runId: run.id,
                 parentId: run.parent_run_id,
-                engineVersion: "v0.2.0",
+                engineVersion: "v0.2.2",
                 invariantStatus: {
                     G0_AnswerIntegrity: g0 as any,
                     G1_AnchorSupport: g1 as any,
@@ -249,86 +249,86 @@ export class Pipeline {
     private canonicalizeText(s: string): string {
         return canonicalizeText(s);
     }
-    private async step3_reasoning(run: Run, scenario: typeof DEMO_SCENARIO | typeof GOLDEN_SCENARIO, spans: any[]): Promise < any[] > {
-    const claimNodes: any[] = [];
-    for(const h of scenario.hypotheses) {
-    const hasSupport = h.supporting_spans && h.supporting_spans.length > 0;
-    const firstSpan = spans[0];
+    private async step3_reasoning(run: Run, scenario: typeof DEMO_SCENARIO | typeof GOLDEN_SCENARIO, spans: any[]): Promise<any[]> {
+        const claimNodes: any[] = [];
+        for (const h of scenario.hypotheses) {
+            const hasSupport = h.supporting_spans && h.supporting_spans.length > 0;
+            const firstSpan = spans[0];
 
-    const hNode = await createNode(
-        NodeType.HYPOTHESIS,
-        { text: h.text },
-        (hasSupport && firstSpan) ? [firstSpan.id] : [],
-        {
-            source: "LLM",
-            model_id: {
-                provider: run.config.planner_model.provider,
-                model: run.config.planner_model.model,
-                version: run.config.planner_model.version
+            const hNode = await createNode(
+                NodeType.HYPOTHESIS,
+                { text: h.text },
+                (hasSupport && firstSpan) ? [firstSpan.id] : [],
+                {
+                    source: "LLM",
+                    model_id: {
+                        provider: run.config.planner_model.provider,
+                        model: run.config.planner_model.model,
+                        version: run.config.planner_model.version
+                    }
+                }
+            );
+            await store.nodes.addNode(hNode);
+            store.setEval(run.id, hNode.id, { status: hasSupport ? "VALID" : "INVALID" });
+
+            if (hasSupport && firstSpan) {
+                const vNode = await createNode(
+                    NodeType.VALIDATION,
+                    { result: "SUPPORTED", reasons: [{ nodeId: firstSpan.id, note: "Direct match found in span." }] },
+                    [hNode.id, firstSpan.id],
+                    { source: "SYSTEM" }
+                );
+                await store.nodes.addNode(vNode);
+                store.setEval(run.id, vNode.id, { status: "VALID" });
+
+                const cNode = await createNode(
+                    NodeType.CLAIM,
+                    { text: h.text },
+                    [hNode.id, vNode.id, firstSpan.id],
+                    { source: "SYSTEM" }
+                );
+                await store.nodes.addNode(cNode);
+                store.setEval(run.id, cNode.id, { status: "VALID" });
+                claimNodes.push(cNode);
             }
         }
-    );
-    await store.nodes.addNode(hNode);
-    store.setEval(run.id, hNode.id, { status: hasSupport ? "VALID" : "INVALID" });
-
-    if (hasSupport && firstSpan) {
-        const vNode = await createNode(
-            NodeType.VALIDATION,
-            { result: "SUPPORTED", reasons: [{ nodeId: firstSpan.id, note: "Direct match found in span." }] },
-            [hNode.id, firstSpan.id],
-            { source: "SYSTEM" }
-        );
-        await store.nodes.addNode(vNode);
-        store.setEval(run.id, vNode.id, { status: "VALID" });
-
-        const cNode = await createNode(
-            NodeType.CLAIM,
-            { text: h.text },
-            [hNode.id, vNode.id, firstSpan.id],
-            { source: "SYSTEM" }
-        );
-        await store.nodes.addNode(cNode);
-        store.setEval(run.id, cNode.id, { status: "VALID" });
-        claimNodes.push(cNode);
-    }
-}
-return claimNodes;
+        return claimNodes;
     }
 
-    private async step4_synthesis(run: Run, _scenario: typeof DEMO_SCENARIO | typeof GOLDEN_SCENARIO, claims: any[]): Promise < void> {
-    // Build answer from run-scoped VALID claims only
-    const validClaims = claims.filter(c => store.getEval(run.id, c.id)?.status === "VALID");
-    const claimIds = validClaims.map(c => c.id).sort();
+    private async step4_synthesis(run: Run, _scenario: typeof DEMO_SCENARIO | typeof GOLDEN_SCENARIO, claims: any[]): Promise<void> {
+        // Build answer from run-scoped VALID claims only
+        const validClaims = claims.filter(c => store.getEval(run.id, c.id)?.status === "VALID");
+        const claimIds = validClaims.map(c => c.id).sort();
 
-    const pNode = await createNode(
-        NodeType.ANSWER_PLAN,
-        {
+        const pNode = await createNode(
+            NodeType.ANSWER_PLAN,
+            {
+                claimIds,
+                sections: [{ title: "Summary", claimIds }]
+            },
             claimIds,
-            sections: [{ title: "Summary", claimIds }]
-        },
-        claimIds,
-        {
-            source: "LLM",
-            model_id: {
-                provider: run.config.planner_model.provider,
-                model: run.config.planner_model.model,
-                version: run.config.planner_model.version
+            {
+                source: "LLM",
+                model_id: {
+                    provider: run.config.planner_model.provider,
+                    model: run.config.planner_model.model,
+                    version: run.config.planner_model.version
+                }
             }
-        }
-    );
-    await store.nodes.addNode(pNode);
-    store.setEval(run.id, pNode.id, { status: "VALID" });
+        );
+        await store.nodes.addNode(pNode);
+        store.setEval(run.id, pNode.id, { status: "VALID" });
 
-    const textOutput = validClaims.map(c => c.payload.text).join('\n\n');
-    const rNode = await createNode(
-        NodeType.ANSWER_RENDERED,
-        { text: textOutput, claimIds },
-        [pNode.id, ...claimIds],
-        { source: "SYSTEM" }
-    );
-    await store.nodes.addNode(rNode);
-    store.setEval(run.id, rNode.id, { status: "VALID" });
-}
+        const textOutput = validClaims.map(c => c.payload.text).join('\n\n');
+        const rNode = await createNode(
+            NodeType.ANSWER_RENDERED,
+            { text: textOutput, claimIds },
+            [pNode.id, ...claimIds],
+            { source: "SYSTEM" }
+        );
+        await store.nodes.addNode(rNode);
+        store.setEval(run.id, rNode.id, { status: "VALID" });
+    }
 }
 
 

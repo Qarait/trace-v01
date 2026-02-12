@@ -19,7 +19,7 @@ export const SupportPanel: React.FC<SupportPanelProps> = ({ runId, onNewRun }) =
         <div className="support-panel" style={{ padding: '24px', height: '100%', overflowY: 'auto' }}>
             <header style={{ marginBottom: '24px' }}>
                 <h2 style={{ fontSize: '1.2rem', color: 'var(--text-primary)', marginBottom: '4px' }}>Support Ledger</h2>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Verifying {claimIds.length} statements for this analysis.</p>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Tracing {claimIds.length} statements to sources.</p>
             </header>
 
             <div className="claim-list" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -112,6 +112,42 @@ const EvidenceItem: React.FC<{ runId: RunID; nodeId: NodeID; onChallenge: () => 
 
     const isInvalid = evaluation?.status === 'INVALID';
 
+    // Walk backward to find RETRIEVAL_DOC ancestor for source receipt
+    const findDocAncestor = (startId: NodeID): any | null => {
+        const visited = new Set<NodeID>();
+        const queue = [startId];
+        while (queue.length > 0) {
+            const id = queue.shift()!;
+            if (visited.has(id)) continue;
+            visited.add(id);
+            const n = store.nodes.getNode(id);
+            if (!n) continue;
+            if (n.type === NodeType.RETRIEVAL_DOC) return n;
+            for (const inp of n.inputs) queue.push(inp);
+        }
+        return null;
+    };
+
+    const docAncestor = findDocAncestor(nodeId);
+    const docPayload = docAncestor?.payload as any;
+    const docUrl = docPayload?.url;
+
+    // Derive hostname+path title from URL
+    let sourceTitle: string = String(node.provenance.source);
+    if (docUrl) {
+        try {
+            const u = new URL(docUrl);
+            const path = u.pathname.length > 1 ? u.pathname : '';
+            sourceTitle = `${u.hostname}${path}`;
+        } catch {
+            sourceTitle = docUrl;
+        }
+    }
+
+    // Check if this is a mock source (from run config, not provenance)
+    const currentRun = store.getRun(runId);
+    const isMock = currentRun?.config?.retrieval?.provider === 'mock';
+
     return (
         <div style={{
             fontSize: '0.85rem',
@@ -123,8 +159,28 @@ const EvidenceItem: React.FC<{ runId: RunID; nodeId: NodeID; onChallenge: () => 
             border: isInvalid ? '1px solid var(--node-invalid)' : '1px solid transparent',
             opacity: isInvalid ? 0.5 : 1
         }}>
+            {/* Source receipt */}
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>Source: {node.provenance.source}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    <FileText size={11} color="var(--text-secondary)" />
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem', fontWeight: 'bold' }}>
+                        {sourceTitle}
+                    </span>
+                    {isMock && (
+                        <span style={{
+                            fontSize: '0.6rem',
+                            padding: '1px 6px',
+                            borderRadius: '3px',
+                            background: 'rgba(255, 193, 7, 0.15)',
+                            color: 'rgb(255, 193, 7)',
+                            fontWeight: 'bold',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.04em'
+                        }}>
+                            Mock
+                        </span>
+                    )}
+                </div>
                 {!isInvalid && (
                     <button
                         onClick={onChallenge}
@@ -136,6 +192,18 @@ const EvidenceItem: React.FC<{ runId: RunID; nodeId: NodeID; onChallenge: () => 
                     </button>
                 )}
             </div>
+            {/* URL receipt */}
+            {docUrl && (
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: '8px', opacity: 0.7 }}>
+                    <a href={docUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-secondary)', textDecoration: 'underline' }}>
+                        {docUrl}
+                    </a>
+                    {currentRun && (
+                        <span style={{ marginLeft: '8px' }}>Captured {new Date(currentRun.created_at).toLocaleDateString()}</span>
+                    )}
+                </div>
+            )}
+            {/* Span text */}
             <div style={{ lineHeight: '1.4' }}>
                 {(node.payload as any).text || 'Target text span...'}
             </div>

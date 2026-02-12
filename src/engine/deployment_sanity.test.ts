@@ -188,7 +188,7 @@ describe('P1: Audit Report Completeness', () => {
 
         // Required pilot fields
         expect(payload.runId).toBe('audit-completeness-test');
-        expect(payload.engineVersion).toBe('v0.2.0');
+        expect(payload.engineVersion).toBe('v0.2.2');
         expect(payload.invariantStatus).toBeDefined();
         expect(payload.invariantStatus.G0_AnswerIntegrity).toMatch(/^(PASSED|FAILED)$/);
         expect(payload.invariantStatus.G1_AnchorSupport).toMatch(/^(PASSED|FAILED)$/);

@@ -1,7 +1,7 @@
 import React from 'react';
 import { store } from '../engine/store.ts';
 import { NodeType, type RunID } from '../engine/types.ts';
-import { ShieldCheck, ShieldX, Fingerprint } from 'lucide-react';
+import { ShieldCheck, ShieldX, Fingerprint, ChevronDown } from 'lucide-react';
 
 interface AuditPanelProps {
     runId: RunID;
@@ -10,6 +10,7 @@ interface AuditPanelProps {
 export const AuditPanel: React.FC<AuditPanelProps> = ({ runId }) => {
     const allNodes = Array.from(store.nodes.getAllNodes().values());
     const reportNode = allNodes.find(n => n.type === NodeType.RUN_AUDIT_REPORT && (n.payload as any).runId === runId);
+    const [showAdvanced, setShowAdvanced] = React.useState(false);
 
     if (!reportNode) {
         return <div style={{ padding: '24px', color: 'var(--text-secondary)' }}>Audit report not yet materialized for this run.</div>;
@@ -17,31 +18,102 @@ export const AuditPanel: React.FC<AuditPanelProps> = ({ runId }) => {
 
     const payload = reportNode.payload as any;
     const stats = payload.invariantStatus;
+    const allPassed = stats.G0_AnswerIntegrity === 'PASSED' &&
+        stats.G1_AnchorSupport === 'PASSED' &&
+        stats.G2_TransitiveCorrectness === 'PASSED';
 
     return (
         <div className="audit-panel" style={{ padding: '24px', color: 'var(--text-primary)' }}>
             <header style={{ marginBottom: '32px' }}>
-                <h2 style={{ fontSize: '1.2rem', marginBottom: '4px' }}>Industrial Audit</h2>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Verifying mathematical and logical invariants for v0.1 release.</p>
+                <h2 style={{ fontSize: '1.2rem', marginBottom: '4px' }}>Integrity Audit</h2>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Verifying structural integrity of this analysis.</p>
             </header>
 
-            <div className="gate-stack" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                <GateRow
-                    label="G0: Answer Integrity"
+            {/* Outcome-first summary */}
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '16px',
+                padding: '20px',
+                borderRadius: '10px',
+                background: allPassed ? 'rgba(76, 175, 80, 0.08)' : 'rgba(244, 67, 54, 0.08)',
+                border: `1px solid ${allPassed ? 'rgba(76, 175, 80, 0.2)' : 'rgba(244, 67, 54, 0.2)'}`,
+                marginBottom: '32px'
+            }}>
+                {allPassed ? <ShieldCheck size={28} color="var(--node-retrieval)" /> : <ShieldX size={28} color="var(--node-invalid)" />}
+                <div>
+                    <div style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '4px' }}>
+                        Audit: {allPassed ? 'PASS' : 'FAIL'}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                        {allPassed
+                            ? 'All integrity checks passed. The answer is structurally sound.'
+                            : 'One or more integrity checks failed. Review details below.'}
+                    </div>
+                </div>
+            </div>
+
+            {/* Plain-language explanation */}
+            <div className="gate-stack" style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '32px' }}>
+                <PlainGateRow
                     status={stats.G0_AnswerIntegrity}
-                    desc="Answer is a deterministic render of verified claims only."
+                    label="Answer composed only from supported claims"
+                    desc="The answer text is assembled deterministically from claims that have evidence backing."
                 />
-                <GateRow
-                    label="G1: Anchor Support"
+                <PlainGateRow
                     status={stats.G1_AnchorSupport}
-                    desc="All fact-bearing nodes trace back to an immutable artifact."
+                    label="Each claim traces to stored evidence"
+                    desc="Every fact-bearing claim can be followed back to an immutable source artifact."
                 />
-                <GateRow
-                    label="G2: Transitive Correctness"
+                <PlainGateRow
                     status={stats.G2_TransitiveCorrectness}
-                    desc="Invalidations propagate instantly across the dependency ledger."
+                    label="Invalidations propagate completely"
+                    desc="When a source is excluded, all claims that depended on it are also removed."
                 />
             </div>
+
+            {/* Advanced: G0/G1/G2 codes */}
+            <button
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    fontSize: '0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '0',
+                    marginBottom: showAdvanced ? '16px' : '0'
+                }}
+            >
+                <ChevronDown size={14} style={{ transform: showAdvanced ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                Advanced: Invariant Codes
+            </button>
+
+            {showAdvanced && (
+                <div style={{ padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', fontSize: '0.75rem', fontFamily: 'monospace' }}>
+                    <div style={{ marginBottom: '8px' }}>
+                        <span style={{ color: stats.G0_AnswerIntegrity === 'PASSED' ? 'var(--node-retrieval)' : 'var(--node-invalid)' }}>
+                            G0_AnswerIntegrity: {stats.G0_AnswerIntegrity}
+                        </span>
+                    </div>
+                    <div style={{ marginBottom: '8px' }}>
+                        <span style={{ color: stats.G1_AnchorSupport === 'PASSED' ? 'var(--node-retrieval)' : 'var(--node-invalid)' }}>
+                            G1_AnchorSupport: {stats.G1_AnchorSupport}
+                        </span>
+                    </div>
+                    <div style={{ marginBottom: '8px' }}>
+                        <span style={{ color: stats.G2_TransitiveCorrectness === 'PASSED' ? 'var(--node-retrieval)' : 'var(--node-invalid)' }}>
+                            G2_TransitiveCorrectness: {stats.G2_TransitiveCorrectness}
+                        </span>
+                    </div>
+                    <div style={{ marginTop: '12px', color: 'var(--text-secondary)', fontSize: '0.7rem' }}>
+                        Engine: {payload.engineVersion} | Nodes: {payload.nodeCounts?.total || 'N/A'}
+                    </div>
+                </div>
+            )}
 
             <footer style={{ marginTop: '48px', paddingTop: '24px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
@@ -56,16 +128,18 @@ export const AuditPanel: React.FC<AuditPanelProps> = ({ runId }) => {
     );
 };
 
-const GateRow: React.FC<{ label: string; status: 'PASSED' | 'FAILED'; desc: string }> = ({ label, status, desc }) => {
+const PlainGateRow: React.FC<{ label: string; status: 'PASSED' | 'FAILED'; desc: string }> = ({ label, status, desc }) => {
     const isPassed = status === 'PASSED';
     return (
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-            <div style={{ padding: '8px', borderRadius: '8px', background: isPassed ? 'rgba(76, 175, 80, 0.1)' : 'rgba(244, 67, 54, 0.1)' }}>
-                {isPassed ? <ShieldCheck color="var(--node-retrieval)" /> : <ShieldX color="var(--node-invalid)" />}
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+            <div style={{ paddingTop: '2px' }}>
+                {isPassed ? <ShieldCheck size={16} color="var(--node-retrieval)" /> : <ShieldX size={16} color="var(--node-invalid)" />}
             </div>
             <div>
-                <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>{label}</div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>{desc}</div>
+                <div style={{ fontSize: '0.9rem', fontWeight: 'bold', marginBottom: '2px', color: isPassed ? 'var(--text-primary)' : 'var(--node-invalid)' }}>
+                    {label}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>{desc}</div>
             </div>
         </div>
     );
