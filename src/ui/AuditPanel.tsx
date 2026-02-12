@@ -41,11 +41,11 @@ export const AuditPanel: React.FC<AuditPanelProps> = ({ runId }) => {
                 marginBottom: '32px'
             }}>
                 {allPassed ? <ShieldCheck size={28} color="var(--node-retrieval)" /> : <ShieldX size={28} color="var(--node-invalid)" />}
-                <div>
+                <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '4px' }}>
                         Audit:{' '}
-                        <span style={{ whiteSpace: 'nowrap' }}>
-                            {allPassed ? 'PASS' : 'FAIL'}{' '}
+                        <span style={{ display: 'inline-flex', whiteSpace: 'nowrap', alignItems: 'baseline', gap: '6px' }}>
+                            {allPassed ? 'PASS' : 'FAIL'}
                             <span style={{ fontWeight: 600, fontSize: '0.85rem', opacity: 0.8 }}>(structure check)</span>
                         </span>
                     </div>
