@@ -1,16 +1,31 @@
 /**
- * DEPLOYMENT SANITY CHECKS (v0.2.0)
- * 
+ * DEPLOYMENT SANITY CHECKS (v0.2.1)
+ *
  * These tests verify the frozen v0.2.0 contract surfaces
  * without modifying any engine semantics. They exist to catch
  * "works on my machine" drift and pilot-killing UX bugs.
+ *
+ * v0.2.1 improvements:
+ *   - Store isolation via beforeEach(reset)
+ *   - Shared diffClaimIds (no split-brain)
+ *   - Exported canonicalizeText (no `as any`)
+ *   - Uniqueness assertions (exactly 1 answer/audit per run)
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { simpleSha256 } from './hashing.ts';
+import { canonicalizeText } from './pipeline.ts';
 import { Pipeline } from './pipeline.ts';
 import { store } from './store.ts';
 import { NodeType } from './types.ts';
+import { diffClaimIds } from './diffClaimIds.ts';
 import type { Run, NodeID } from './types.ts';
+
+// ─────────────────────────────────────────────────
+// Store isolation: prevent cross-test bleed
+// ─────────────────────────────────────────────────
+beforeEach(() => {
+    store.reset();
+});
 
 // ─────────────────────────────────────────────────
 // Helpers
@@ -37,15 +52,12 @@ describe('P0: Golden Hash Vector (Environment Determinism)', () => {
         //   BOM stripping, CRLF/CR → LF, NFD → NFC
         const rawInput = "\uFEFFCafe\u0301\r\nLine2\rLine3\n";
 
-        // Expected canonical output after pipeline.canonicalizeText:
+        // Expected canonical output:
         //   BOM removed, CRLF→LF, lone CR→LF, NFD→NFC
         const expectedCanonical = "Café\nLine2\nLine3\n";
 
-        // Access canonicalizeText via the pipeline instance (it's private,
-        // so we test through the same hashing path the system actually uses)
-        const pipeline = new Pipeline();
-        const canonicalized = (pipeline as any).canonicalizeText(rawInput);
-
+        // v0.2.1: Use exported function directly (no `as any` access)
+        const canonicalized = canonicalizeText(rawInput);
         expect(canonicalized).toBe(expectedCanonical);
 
         // Hash the canonical output using the SAME function the store uses
@@ -67,23 +79,19 @@ describe('P0: Golden Hash Vector (Environment Determinism)', () => {
 });
 
 // ─────────────────────────────────────────────────
-// P1: Diff Alignment (claimId-based, not position)
+// P1: Diff Alignment (shared diffClaimIds function)
 // ─────────────────────────────────────────────────
 describe('P1: Diff Alignment Under Reorder', () => {
     it('diff uses set membership, not index position', () => {
         // Simulate parent answer: [A, B, C]
         // Simulate child answer:  [B, D, A]
-        const parentClaimIds: string[] = ['claim-A', 'claim-B', 'claim-C'];
-        const childClaimIds: string[] = ['claim-B', 'claim-D', 'claim-A'];
+        const parentClaimIds: NodeID[] = ['claim-A' as NodeID, 'claim-B' as NodeID, 'claim-C' as NodeID];
+        const childClaimIds: NodeID[] = ['claim-B' as NodeID, 'claim-D' as NodeID, 'claim-A' as NodeID];
 
-        const childSet = new Set(childClaimIds);
-        const parentSet = new Set(parentClaimIds);
+        // v0.2.1: Use the SAME function the UI uses
+        const { kept, removed, added } = diffClaimIds(parentClaimIds, childClaimIds);
 
-        const removed = parentClaimIds.filter(id => !childSet.has(id));
-        const kept = parentClaimIds.filter(id => childSet.has(id));
-        const added = childClaimIds.filter(id => !parentSet.has(id));
-
-        // Set-based diff: order doesn't matter
+        // Set-based diff: order doesn't matter for membership
         expect(removed).toEqual(['claim-C']);
         expect(new Set(kept)).toEqual(new Set(['claim-A', 'claim-B']));
         expect(added).toEqual(['claim-D']);
@@ -92,6 +100,20 @@ describe('P1: Diff Alignment Under Reorder', () => {
         // they changed position (index 0→2 for A, index 1→0 for B)
         expect(removed).not.toContain('claim-A');
         expect(removed).not.toContain('claim-B');
+    });
+
+    it('kept preserves parent order, added preserves child order', () => {
+        const parent: NodeID[] = ['c1' as NodeID, 'c2' as NodeID, 'c3' as NodeID];
+        const child: NodeID[] = ['c5' as NodeID, 'c3' as NodeID, 'c1' as NodeID, 'c4' as NodeID];
+
+        const { kept, removed, added } = diffClaimIds(parent, child);
+
+        // kept in parent order
+        expect(kept).toEqual(['c1', 'c3']);
+        // removed in parent order
+        expect(removed).toEqual(['c2']);
+        // added in child order
+        expect(added).toEqual(['c5', 'c4']);
     });
 });
 
@@ -144,7 +166,7 @@ describe('P0: WebCrypto Availability', () => {
 });
 
 // ─────────────────────────────────────────────────
-// P1/P2: Audit Report Completeness
+// P1/P2: Audit Report Completeness + Uniqueness
 // ─────────────────────────────────────────────────
 describe('P1: Audit Report Completeness', () => {
     it('RUN_AUDIT_REPORT includes all required fields after pipeline execution', async () => {
@@ -154,14 +176,15 @@ describe('P1: Audit Report Completeness', () => {
         await pipeline.execute(run as any);
 
         const allNodes = Array.from(store.nodes.getAllNodes().values());
-        const auditNode = allNodes.find(
+
+        // v0.2.1: Assert uniqueness — exactly ONE audit report per run
+        const auditNodes = allNodes.filter(
             n => n.type === NodeType.RUN_AUDIT_REPORT &&
                 store.getEval('audit-completeness-test', n.id)
         );
+        expect(auditNodes).toHaveLength(1);
 
-        expect(auditNode).toBeDefined();
-
-        const payload = auditNode!.payload as any;
+        const payload = auditNodes[0]!.payload as any;
 
         // Required pilot fields
         expect(payload.runId).toBe('audit-completeness-test');
@@ -176,7 +199,7 @@ describe('P1: Audit Report Completeness', () => {
 });
 
 // ─────────────────────────────────────────────────
-// P0: G0 Answer Integrity (Strict Join Check)
+// P0: G0 Answer Integrity (Strict Join Check) + Uniqueness
 // ─────────────────────────────────────────────────
 describe('P0: G0 Answer Integrity', () => {
     it('ANSWER_RENDERED.text equals deterministic join of claim texts', async () => {
@@ -186,14 +209,15 @@ describe('P0: G0 Answer Integrity', () => {
         await pipeline.execute(run as any);
 
         const allNodes = Array.from(store.nodes.getAllNodes().values());
-        const answerNode = allNodes.find(
+
+        // v0.2.1: Assert uniqueness — exactly ONE answer per run
+        const answerNodes = allNodes.filter(
             n => n.type === NodeType.ANSWER_RENDERED &&
                 store.getEval('g0-join-test', n.id)
         );
+        expect(answerNodes).toHaveLength(1);
 
-        expect(answerNode).toBeDefined();
-
-        const answPayload = answerNode!.payload as any;
+        const answPayload = answerNodes[0]!.payload as any;
         const claimIds: NodeID[] = answPayload.claimIds;
         const claims = claimIds.map(id => store.nodes.getNode(id)).filter(Boolean);
         const joinText = claims.map(c => (c!.payload as any).text).join('\n\n');

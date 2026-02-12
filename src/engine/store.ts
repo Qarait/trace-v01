@@ -54,6 +54,10 @@ export class NodeStore {
     getAllNodes(): Map<NodeID, Node> {
         return this.nodes;
     }
+
+    clear(): void {
+        this.nodes.clear();
+    }
 }
 
 /**
@@ -64,6 +68,14 @@ export class EngineStore {
     private runs: Map<RunID, Run> = new Map();
     private evals: Map<string, RunEval> = new Map(); // key: `${runId}:${nodeId}`
     private artifacts: Map<ContentHash, Uint8Array> = new Map();
+
+    /** Clears all state for test isolation. Uses .clear() to avoid dangling refs. */
+    reset(): void {
+        this.nodes.clear();
+        this.runs.clear();
+        this.evals.clear();
+        this.artifacts.clear();
+    }
 
     // Run management
     registerRun(run: Run): void {

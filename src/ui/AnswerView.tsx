@@ -3,6 +3,7 @@ import { store } from '../engine/store.ts';
 import type { NodeID, RunID } from '../engine/types.ts';
 import { NodeType } from '../engine/types.ts';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { diffClaimIds } from '../engine/diffClaimIds.ts';
 import { translateStatus } from './uiUtils.ts';
 
 interface AnswerViewProps {
@@ -29,9 +30,8 @@ export const AnswerView: React.FC<AnswerViewProps> = ({ runId, nodeId }) => {
     const parentAnswer = parentAnswerId ? store.nodes.getNode(parentAnswerId) : null;
     const parentClaimIds = (parentAnswer?.payload as any)?.claimIds || [];
 
-    // Identification of removed claims
-    const currentSet = new Set(currentClaimIds);
-    const removedClaimIds = parentClaimIds.filter((id: NodeID) => !currentSet.has(id));
+    // Use the shared diff function (single source of truth)
+    const { removed: removedClaimIds } = diffClaimIds(parentClaimIds, currentClaimIds);
 
     return (
         <div className="answer-content">
