@@ -43,15 +43,15 @@ export const AuditPanel: React.FC<AuditPanelProps> = ({ runId }) => {
                 {allPassed ? <ShieldCheck size={28} color="var(--node-retrieval)" /> : <ShieldX size={28} color="var(--node-invalid)" />}
                 <div>
                     <div style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '4px' }}>
-                        Audit: {allPassed ? 'PASS' : 'FAIL'}
+                        Audit: {allPassed ? 'PASS' : 'FAIL'} <span style={{ fontWeight: 'normal', fontSize: '0.85rem', opacity: 0.7 }}>(structure check)</span>
                     </div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                         {allPassed
-                            ? 'All integrity checks passed. The answer is structurally sound.'
+                            ? 'All integrity checks passed. The answer is consistent with the sources shown.'
                             : 'One or more integrity checks failed. Review details below.'}
                     </div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontStyle: 'italic', marginTop: '2px' }}>
-                        Structure check — not a fact-check.
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        Not a fact-check. Structure check only.
                     </div>
                 </div>
             </div>
